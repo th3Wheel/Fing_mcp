@@ -56,7 +56,11 @@ def _make_handler(
             return httpx.Response(200, json=[{"id": item_id, "title": item_name}])
 
         if path == f"/v1/vaults/{vault_id}/items/{item_id}":
-            fields = [] if empty_fields else [{"id": field_label, "label": field_label, "value": field_value}]
+            fields = (
+                []
+                if empty_fields
+                else [{"id": field_label, "label": field_label, "value": field_value}]
+            )
             return httpx.Response(200, json={"id": item_id, "title": item_name, "fields": fields})
 
         return httpx.Response(404, text="Not found")
@@ -71,9 +75,7 @@ def _make_handler(
 
 def test_resolve_op_ref_success():
     """Happy-path resolution of an op:// reference."""
-    transport = httpx.MockTransport(
-        _make_handler("MyVault", "MyItem", "password", "s3cr3t")
-    )
+    transport = httpx.MockTransport(_make_handler("MyVault", "MyItem", "password", "s3cr3t"))
     _orig_client = httpx.Client
 
     def patched_client(**kwargs):
@@ -139,37 +141,86 @@ def test_resolve_op_ref_field_not_found():
 # load_config
 # ---------------------------------------------------------------------------
 
+_ENV_VARS = (
+    "FING_API_BASE_URL",
+    "FING_API_KEY",
+    "FING_TIMEOUT",
+    "FING_RETRIES",
+    "FING_AGENT_INFO_PORT",
+    "OP_CONNECT_HOST",
+    "OP_CONNECT_TOKEN",
+)
 
-def test_load_config_defaults(monkeypatch):
-    monkeypatch.delenv("FING_API_BASE_URL", raising=False)
-    monkeypatch.delenv("FING_API_KEY", raising=False)
-    monkeypatch.delenv("FING_TIMEOUT", raising=False)
-    monkeypatch.delenv("FING_RETRIES", raising=False)
-    monkeypatch.delenv("OP_CONNECT_HOST", raising=False)
-    monkeypatch.delenv("OP_CONNECT_TOKEN", raising=False)
 
+@pytest.fixture()
+def clean_env(monkeypatch):
+    for name in _ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
+    return monkeypatch
+
+
+def test_load_config_defaults(clean_env):
     cfg = load_config()
 
-    assert cfg.fing_api_base_url == "http://localhost:48080"
+    assert cfg.fing_api_base_url == "http://localhost:49090"
     assert cfg.fing_api_key == ""
     assert cfg.fing_timeout == 10.0
-    assert cfg.fing_retries == 3
+    assert cfg.fing_retries == 2
+    assert cfg.fing_agent_info_port == 44444
     assert cfg.op_connect_host == ""
     assert cfg.op_connect_token == ""
 
 
-def test_load_config_custom_values(monkeypatch):
-    monkeypatch.setenv("FING_API_BASE_URL", "http://192.168.1.1:48080")
-    monkeypatch.setenv("FING_API_KEY", "my-key")
-    monkeypatch.setenv("FING_TIMEOUT", "5")
-    monkeypatch.setenv("FING_RETRIES", "2")
-    monkeypatch.setenv("OP_CONNECT_HOST", "http://connect:8080")
-    monkeypatch.setenv("OP_CONNECT_TOKEN", "tok")
+def test_load_config_custom_values(clean_env):
+    clean_env.setenv("FING_API_BASE_URL", "http://192.168.1.1:49090")
+    clean_env.setenv("FING_API_KEY", " my-key ")
+    clean_env.setenv("FING_TIMEOUT", "5")
+    clean_env.setenv("FING_RETRIES", "0")
+    clean_env.setenv("FING_AGENT_INFO_PORT", "4444")
+    clean_env.setenv("OP_CONNECT_HOST", "http://connect:8080")
+    clean_env.setenv("OP_CONNECT_TOKEN", "tok")
 
     cfg = load_config()
 
-    assert cfg.fing_api_base_url == "http://192.168.1.1:48080"
+    assert cfg.fing_api_base_url == "http://192.168.1.1:49090"
     assert cfg.fing_api_key == "my-key"
     assert cfg.fing_timeout == 5.0
-    assert cfg.fing_retries == 2
+    assert cfg.fing_retries == 0
+    assert cfg.fing_agent_info_port == 4444
 
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("http://10.0.0.5:49090/1/", "http://10.0.0.5:49090"),
+        ("http://10.0.0.5:49090/", "http://10.0.0.5:49090"),
+        ("10.0.0.5:49090", "http://10.0.0.5:49090"),
+        ("  ", "http://localhost:49090"),
+    ],
+)
+def test_base_url_normalised(clean_env, raw, expected):
+    clean_env.setenv("FING_API_BASE_URL", raw)
+    assert load_config().fing_api_base_url == expected
+
+
+@pytest.mark.parametrize(("name", "value"), [("FING_TIMEOUT", "fast"), ("FING_RETRIES", "-1")])
+def test_invalid_numbers_rejected(clean_env, name, value):
+    clean_env.setenv(name, value)
+    with pytest.raises(ValueError, match=name):
+        load_config()
+
+
+def test_op_ref_without_connect_is_clear_error(clean_env):
+    clean_env.setenv("FING_API_KEY", "op://Home/Fing/credential")
+    with pytest.raises(ValueError, match="OP_CONNECT_HOST and OP_CONNECT_TOKEN"):
+        load_config()
+
+
+def test_op_ref_resolved_via_connect(clean_env):
+    clean_env.setenv("FING_API_KEY", "op://Home/Fing/credential")
+    clean_env.setenv("OP_CONNECT_HOST", "http://connect:8080/")
+    clean_env.setenv("OP_CONNECT_TOKEN", "tok")
+    with patch("config._resolve_op_ref", return_value="resolved") as resolver:
+        cfg = load_config()
+    assert cfg.fing_api_key == "resolved"
+    resolver.assert_called_once_with("op://Home/Fing/credential", "http://connect:8080", "tok")

@@ -26,8 +26,10 @@ htmlcov/
 .env
 .env.*
 !.env.example
+1password-credentials.json
 
 # Editors
-.vscode/
+.vscode/*
+!.vscode/mcp.json
 .idea/
 *.swp
