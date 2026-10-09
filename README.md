@@ -23,7 +23,8 @@ flowchart LR
 | `list_people` | Contacts and presence (ONLINE/OFFLINE); avatars omitted unless `include_pictures` | Fing Desktop |
 | `get_agent_status` | Connection self-test of each endpoint plus agent identity — run this first if anything fails | All |
 
-All tools are read-only and annotated `readOnlyHint`.
+All tools are read-only (annotated `readOnlyHint`) and publish an `outputSchema`; results use the
+Fing API's own field names, with empty fields omitted.
 
 ## 1. Enable the Local API in Fing
 
@@ -79,8 +80,9 @@ docker compose up -d --build
 curl http://localhost:8000/healthz
 ```
 
-The MCP endpoint is `http://<docker-host>:8000/mcp` (streamable HTTP). It has **no authentication**,
-so keep it on a trusted network or put it behind a reverse proxy.
+The MCP endpoint is `http://localhost:8000/mcp` (streamable HTTP). It has **no authentication**, so
+Compose publishes it on loopback only. To reach it from other machines set `MCP_BIND=0.0.0.0` (or a
+LAN IP) in `.env`, and keep it on a trusted network or behind an authenticating reverse proxy.
 
 > **Fing Desktop and remote access:** if the server runs on a different machine than Fing Desktop
 > (for example in Docker on Proxmox), make sure the Windows firewall allows inbound TCP 49090. Fing
@@ -96,7 +98,8 @@ so keep it on a trusted network or put it behind a reverse proxy.
 | `FING_RETRIES` | `2` | Connection retries |
 | `FING_AGENT_INFO_PORT` | `44444` | UPnP identity port used by `get_agent_status` |
 | `MCP_TRANSPORT` | `stdio` | `stdio`, `http` or `sse` (Docker image defaults to `http`) |
-| `MCP_HOST` / `MCP_PORT` | `127.0.0.1` / `8000` | HTTP bind address |
+| `MCP_HOST` / `MCP_PORT` | `127.0.0.1` / `8000` | HTTP bind address inside the process/container |
+| `MCP_BIND` / `MCP_PUBLISH_PORT` | `127.0.0.1` / `8000` | Compose only: host address/port to publish on |
 | `OP_CONNECT_HOST` / `OP_CONNECT_TOKEN` | — | 1Password Connect for `op://` keys; the token must be literal |
 | `LOG_LEVEL` | `INFO` | Logs go to stderr; the API key is never logged |
 

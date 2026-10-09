@@ -12,7 +12,7 @@ adds fields does not break validation.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -117,3 +117,84 @@ class FingPeopleResponse(_FingModel):
         description="ISO-8601 time of the last presence change",
     )
     people: list[Contact] = Field(default_factory=list, description="Contacts and their presence")
+
+
+# ---------------------------------------------------------------------------
+# Tool output models
+#
+# Tools return plain dicts keyed by the wire (alias) names with None values
+# omitted; these models exist to publish an accurate ``outputSchema`` for each
+# tool (see ``output_schema()``) and are checked against real tool output in
+# tests/test_contracts.py.
+# ---------------------------------------------------------------------------
+
+
+class DeviceListResult(_FingModel):
+    network_id: str | None = Field(default=None, alias="networkId")
+    total: int = Field(description="Devices on the network before filtering")
+    count: int = Field(description="Devices matching the filters")
+    devices: list[Device]
+
+
+class DeviceWithOwner(Device):
+    owner_name: str | None = Field(
+        default=None, alias="ownerName", description="Display name of the owning contact"
+    )
+
+
+class DeviceLookupResult(_FingModel):
+    query: str
+    match: Literal["exact", "partial"]
+    count: int
+    devices: list[DeviceWithOwner]
+
+
+class DeviceBrief(_FingModel):
+    mac: str
+    ip: list[str] = Field(default_factory=list)
+    name: str | None = None
+    state: str
+    make: str | None = None
+    first_seen: str | None = None
+    last_changed: str | None = None
+
+
+class NetworkSummary(_FingModel):
+    network_id: str | None = Field(default=None, alias="networkId")
+    total: int
+    online: int
+    offline: int
+    by_type: dict[str, int] = Field(alias="byType", description="Device count per Fing type")
+    by_make: dict[str, int] = Field(alias="byMake", description="Device count per manufacturer")
+    unidentified_count: int = Field(alias="unidentifiedCount")
+    unidentified: list[DeviceBrief] = Field(description="Devices with neither name nor make")
+    recently_changed: list[DeviceBrief] = Field(alias="recentlyChanged")
+    newest: list[DeviceBrief]
+
+
+class PeopleListResult(_FingModel):
+    network_id: str | None = Field(default=None, alias="networkId")
+    last_change_time: str | None = Field(default=None, alias="lastChangeTime")
+    count: int
+    people: list[Contact]
+
+
+class CheckResult(_FingModel):
+    """Outcome of one diagnostic check; extra keys carry check-specific detail."""
+
+    ok: bool
+    error: str | None = None
+
+
+class AgentStatus(_FingModel):
+    server_version: str = Field(alias="serverVersion")
+    api_base_url: str | None = Field(default=None, alias="apiBaseUrl")
+    config: CheckResult
+    devices_endpoint: CheckResult = Field(alias="devicesEndpoint")
+    people_endpoint: CheckResult = Field(alias="peopleEndpoint")
+    agent_info: CheckResult = Field(alias="agentInfo")
+
+
+def output_schema(model: type[BaseModel]) -> dict[str, Any]:
+    """JSON Schema for a tool result, using wire names and treating defaulted fields as optional."""
+    return model.model_json_schema(by_alias=True, mode="validation")

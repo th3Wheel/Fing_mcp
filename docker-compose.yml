@@ -25,7 +25,9 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "${MCP_PUBLISH_PORT:-8000}:8000"
+      # Loopback only by default: the endpoint is unauthenticated. Set MCP_BIND=0.0.0.0
+      # (or a LAN IP) in .env to expose it to other machines.
+      - "${MCP_BIND:-127.0.0.1}:${MCP_PUBLISH_PORT:-8000}:8000"
     depends_on:
       op-connect-api:
         condition: service_started

@@ -33,6 +33,7 @@ async def build_manifest() -> dict:
                 if t.annotations
                 else {},
                 "inputSchema": t.parameters,
+                "outputSchema": t.output_schema,
             }
             for t in tools
         ],

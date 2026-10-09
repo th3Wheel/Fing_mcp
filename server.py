@@ -33,7 +33,15 @@ from starlette.responses import JSONResponse
 
 from config import load_config
 from fing_client import FingAPIError, FingClient
-from models import Device
+from models import (
+    AgentStatus,
+    Device,
+    DeviceListResult,
+    DeviceLookupResult,
+    NetworkSummary,
+    PeopleListResult,
+    output_schema,
+)
 
 __version__ = "1.1.0"
 
@@ -135,7 +143,9 @@ def _sorted_devices(devices: list[Device]) -> list[Device]:
 # ----------------------------------------------------------------------- tools
 
 
-@mcp.tool(name="list_devices", annotations=_READ_ONLY)
+@mcp.tool(
+    name="list_devices", annotations=_READ_ONLY, output_schema=output_schema(DeviceListResult)
+)
 async def list_devices(
     state: Annotated[
         Literal["UP", "DOWN"] | None,
@@ -196,7 +206,9 @@ async def list_devices(
     }
 
 
-@mcp.tool(name="get_device", annotations=_READ_ONLY)
+@mcp.tool(
+    name="get_device", annotations=_READ_ONLY, output_schema=output_schema(DeviceLookupResult)
+)
 async def get_device(
     identifier: Annotated[
         str,
@@ -256,7 +268,9 @@ async def get_device(
     }
 
 
-@mcp.tool(name="get_network_summary", annotations=_READ_ONLY)
+@mcp.tool(
+    name="get_network_summary", annotations=_READ_ONLY, output_schema=output_schema(NetworkSummary)
+)
 async def get_network_summary(
     top: Annotated[
         int, Field(ge=1, le=50, description="How many recent / new devices to include")
@@ -309,7 +323,7 @@ async def get_network_summary(
     }
 
 
-@mcp.tool(name="list_people", annotations=_READ_ONLY)
+@mcp.tool(name="list_people", annotations=_READ_ONLY, output_schema=output_schema(PeopleListResult))
 async def list_people(
     state: Annotated[
         Literal["ONLINE", "OFFLINE"] | None,
@@ -340,13 +354,21 @@ async def list_people(
     }
 
 
-@mcp.tool(name="get_agent_status", annotations=_READ_ONLY)
+@mcp.tool(name="get_agent_status", annotations=_READ_ONLY, output_schema=output_schema(AgentStatus))
 async def get_agent_status() -> dict[str, Any]:
     """Diagnose the connection to Fing: checks the Local API (/devices and /people)
     and reads the agent's UPnP identity (Fingbox / Fing Agent only). Never fails —
-    each check reports ok or the error it hit."""
-    client = _get_client()
-    status: dict[str, Any] = {"serverVersion": __version__, "apiBaseUrl": client.api_root}
+    each check reports ok or the error it hit, including configuration errors."""
+    status: dict[str, Any] = {"serverVersion": __version__}
+    try:
+        client = _get_client()
+    except ToolError as exc:
+        skipped = {"ok": False, "error": "skipped: fix the configuration error first"}
+        status["config"] = {"ok": False, "error": str(exc)}
+        status.update(devicesEndpoint=skipped, peopleEndpoint=skipped, agentInfo=skipped)
+        return status
+    status["apiBaseUrl"] = client.api_root
+    status["config"] = {"ok": True}
 
     try:
         devices = await client.get_devices()

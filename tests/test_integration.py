@@ -243,3 +243,13 @@ async def test_healthz_route():
         resp = await http.get("/healthz")
     assert resp.status_code == 200
     assert resp.json()["status"] == "ok"
+
+
+async def test_agent_status_reports_config_errors(monkeypatch):
+    monkeypatch.setattr(server, "_client", None)
+    monkeypatch.setenv("FING_TIMEOUT", "fast")
+    s = await server.get_agent_status()
+    assert s["config"]["ok"] is False
+    assert "FING_TIMEOUT" in s["config"]["error"]
+    assert s["devicesEndpoint"]["ok"] is False
+    assert "apiBaseUrl" not in s

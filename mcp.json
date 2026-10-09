@@ -5,7 +5,7 @@
   "tools": [
     {
       "name": "get_agent_status",
-      "description": "Diagnose the connection to Fing: checks the Local API (/devices and /people)\nand reads the agent's UPnP identity (Fingbox / Fing Agent only). Never fails \u2014\neach check reports ok or the error it hit.",
+      "description": "Diagnose the connection to Fing: checks the Local API (/devices and /people)\nand reads the agent's UPnP identity (Fingbox / Fing Agent only). Never fails \u2014\neach check reports ok or the error it hit, including configuration errors.",
       "annotations": {
         "readOnlyHint": true,
         "idempotentHint": true,
@@ -14,6 +14,144 @@
       "inputSchema": {
         "additionalProperties": false,
         "properties": {},
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "properties": {
+          "serverVersion": {
+            "title": "Serverversion",
+            "type": "string"
+          },
+          "apiBaseUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Apibaseurl"
+          },
+          "config": {
+            "additionalProperties": true,
+            "description": "Outcome of one diagnostic check; extra keys carry check-specific detail.",
+            "properties": {
+              "ok": {
+                "title": "Ok",
+                "type": "boolean"
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Error"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "title": "CheckResult",
+            "type": "object"
+          },
+          "devicesEndpoint": {
+            "additionalProperties": true,
+            "description": "Outcome of one diagnostic check; extra keys carry check-specific detail.",
+            "properties": {
+              "ok": {
+                "title": "Ok",
+                "type": "boolean"
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Error"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "title": "CheckResult",
+            "type": "object"
+          },
+          "peopleEndpoint": {
+            "additionalProperties": true,
+            "description": "Outcome of one diagnostic check; extra keys carry check-specific detail.",
+            "properties": {
+              "ok": {
+                "title": "Ok",
+                "type": "boolean"
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Error"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "title": "CheckResult",
+            "type": "object"
+          },
+          "agentInfo": {
+            "additionalProperties": true,
+            "description": "Outcome of one diagnostic check; extra keys carry check-specific detail.",
+            "properties": {
+              "ok": {
+                "title": "Ok",
+                "type": "boolean"
+              },
+              "error": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Error"
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "title": "CheckResult",
+            "type": "object"
+          }
+        },
+        "required": [
+          "serverVersion",
+          "config",
+          "devicesEndpoint",
+          "peopleEndpoint",
+          "agentInfo"
+        ],
+        "title": "AgentStatus",
         "type": "object"
       }
     },
@@ -38,6 +176,172 @@
           "identifier"
         ],
         "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "match": {
+            "enum": [
+              "exact",
+              "partial"
+            ],
+            "title": "Match",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "devices": {
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "mac": {
+                  "description": "MAC address of the device",
+                  "title": "Mac",
+                  "type": "string"
+                },
+                "ip": {
+                  "description": "IP addresses assigned to the device",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Ip",
+                  "type": "array"
+                },
+                "state": {
+                  "description": "Presence state: 'UP' (online) or 'DOWN' (offline)",
+                  "title": "State",
+                  "type": "string"
+                },
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Friendly name of the device",
+                  "title": "Name"
+                },
+                "type": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Fing device type, e.g. STREAMING_DONGLE",
+                  "title": "Type"
+                },
+                "make": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Device manufacturer",
+                  "title": "Make"
+                },
+                "model": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Device model",
+                  "title": "Model"
+                },
+                "contactId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "ID of the Fing contact (person) who owns this device",
+                  "title": "Contactid"
+                },
+                "first_seen": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "ISO-8601 time the device was first seen",
+                  "title": "First Seen"
+                },
+                "last_changed": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "ISO-8601 time of the last state change",
+                  "title": "Last Changed"
+                },
+                "ownerName": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Display name of the owning contact",
+                  "title": "Ownername"
+                }
+              },
+              "required": [
+                "mac",
+                "state"
+              ],
+              "title": "DeviceWithOwner",
+              "type": "object"
+            },
+            "title": "Devices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "query",
+          "match",
+          "count",
+          "devices"
+        ],
+        "title": "DeviceLookupResult",
+        "type": "object"
       }
     },
     {
@@ -59,6 +363,303 @@
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "properties": {
+          "networkId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Networkid"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "online": {
+            "title": "Online",
+            "type": "integer"
+          },
+          "offline": {
+            "title": "Offline",
+            "type": "integer"
+          },
+          "byType": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Device count per Fing type",
+            "title": "Bytype",
+            "type": "object"
+          },
+          "byMake": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Device count per manufacturer",
+            "title": "Bymake",
+            "type": "object"
+          },
+          "unidentifiedCount": {
+            "title": "Unidentifiedcount",
+            "type": "integer"
+          },
+          "unidentified": {
+            "description": "Devices with neither name nor make",
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "mac": {
+                  "title": "Mac",
+                  "type": "string"
+                },
+                "ip": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Ip",
+                  "type": "array"
+                },
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Name"
+                },
+                "state": {
+                  "title": "State",
+                  "type": "string"
+                },
+                "make": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Make"
+                },
+                "first_seen": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "First Seen"
+                },
+                "last_changed": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Last Changed"
+                }
+              },
+              "required": [
+                "mac",
+                "state"
+              ],
+              "title": "DeviceBrief",
+              "type": "object"
+            },
+            "title": "Unidentified",
+            "type": "array"
+          },
+          "recentlyChanged": {
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "mac": {
+                  "title": "Mac",
+                  "type": "string"
+                },
+                "ip": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Ip",
+                  "type": "array"
+                },
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Name"
+                },
+                "state": {
+                  "title": "State",
+                  "type": "string"
+                },
+                "make": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Make"
+                },
+                "first_seen": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "First Seen"
+                },
+                "last_changed": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Last Changed"
+                }
+              },
+              "required": [
+                "mac",
+                "state"
+              ],
+              "title": "DeviceBrief",
+              "type": "object"
+            },
+            "title": "Recentlychanged",
+            "type": "array"
+          },
+          "newest": {
+            "items": {
+              "additionalProperties": true,
+              "properties": {
+                "mac": {
+                  "title": "Mac",
+                  "type": "string"
+                },
+                "ip": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Ip",
+                  "type": "array"
+                },
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Name"
+                },
+                "state": {
+                  "title": "State",
+                  "type": "string"
+                },
+                "make": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Make"
+                },
+                "first_seen": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "First Seen"
+                },
+                "last_changed": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Last Changed"
+                }
+              },
+              "required": [
+                "mac",
+                "state"
+              ],
+              "title": "DeviceBrief",
+              "type": "object"
+            },
+            "title": "Newest",
+            "type": "array"
+          }
+        },
+        "required": [
+          "total",
+          "online",
+          "offline",
+          "byType",
+          "byMake",
+          "unidentifiedCount",
+          "unidentified",
+          "recentlyChanged",
+          "newest"
+        ],
+        "title": "NetworkSummary",
         "type": "object"
       }
     },
@@ -141,6 +742,165 @@
           }
         },
         "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "properties": {
+          "networkId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Networkid"
+          },
+          "total": {
+            "description": "Devices on the network before filtering",
+            "title": "Total",
+            "type": "integer"
+          },
+          "count": {
+            "description": "Devices matching the filters",
+            "title": "Count",
+            "type": "integer"
+          },
+          "devices": {
+            "items": {
+              "additionalProperties": true,
+              "description": "A device discovered by the Fing agent.",
+              "properties": {
+                "mac": {
+                  "description": "MAC address of the device",
+                  "title": "Mac",
+                  "type": "string"
+                },
+                "ip": {
+                  "description": "IP addresses assigned to the device",
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Ip",
+                  "type": "array"
+                },
+                "state": {
+                  "description": "Presence state: 'UP' (online) or 'DOWN' (offline)",
+                  "title": "State",
+                  "type": "string"
+                },
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Friendly name of the device",
+                  "title": "Name"
+                },
+                "type": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Fing device type, e.g. STREAMING_DONGLE",
+                  "title": "Type"
+                },
+                "make": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Device manufacturer",
+                  "title": "Make"
+                },
+                "model": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Device model",
+                  "title": "Model"
+                },
+                "contactId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "ID of the Fing contact (person) who owns this device",
+                  "title": "Contactid"
+                },
+                "first_seen": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "ISO-8601 time the device was first seen",
+                  "title": "First Seen"
+                },
+                "last_changed": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "ISO-8601 time of the last state change",
+                  "title": "Last Changed"
+                }
+              },
+              "required": [
+                "mac",
+                "state"
+              ],
+              "title": "Device",
+              "type": "object"
+            },
+            "title": "Devices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "total",
+          "count",
+          "devices"
+        ],
+        "title": "DeviceListResult",
+        "type": "object"
       }
     },
     {
@@ -176,6 +936,168 @@
             "type": "boolean"
           }
         },
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "properties": {
+          "networkId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Networkid"
+          },
+          "lastChangeTime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lastchangetime"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "people": {
+            "items": {
+              "additionalProperties": true,
+              "description": "A person tracked by Fing, with their presence state.",
+              "properties": {
+                "stateChangeTime": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "ISO-8601 time presence last changed",
+                  "title": "Statechangetime"
+                },
+                "contactInfo": {
+                  "additionalProperties": true,
+                  "description": "Identity details",
+                  "properties": {
+                    "contactId": {
+                      "description": "Unique contact identifier (UUID)",
+                      "title": "Contactid",
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Contact display name",
+                      "title": "Displayname"
+                    },
+                    "contactType": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Contact type, e.g. FAMILY",
+                      "title": "Contacttype"
+                    },
+                    "pictureUrl": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Avatar URL, if any",
+                      "title": "Pictureurl"
+                    },
+                    "pictureImageData": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Base64-encoded avatar image, if any",
+                      "title": "Pictureimagedata"
+                    }
+                  },
+                  "required": [
+                    "contactId"
+                  ],
+                  "title": "ContactInfo",
+                  "type": "object"
+                },
+                "currentState": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "'ONLINE' or 'OFFLINE'; absent when no presence device is assigned",
+                  "title": "Currentstate"
+                },
+                "presenceDeviceDetails": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Device used to infer presence",
+                  "title": "Presencedevicedetails"
+                }
+              },
+              "required": [
+                "contactInfo"
+              ],
+              "title": "Contact",
+              "type": "object"
+            },
+            "title": "People",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "people"
+        ],
+        "title": "PeopleListResult",
         "type": "object"
       }
     }
