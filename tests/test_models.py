@@ -64,3 +64,19 @@ def test_people_response():
 def test_people_requires_contact_info():
     with pytest.raises(ValidationError):
         FingPeopleResponse.model_validate({"people": [{"currentState": "ONLINE"}]})
+
+
+# Decision on PR #6: records missing optional fields are kept (exported with
+# null/empty values) rather than rejected, so IP-less devices still reach the
+# downstream source of truth.
+def test_missing_or_null_optional_fields_are_accepted():
+    devices = FingDevicesResponse.model_validate(
+        {"devices": [{"mac": "AA", "state": "UP"}, {"mac": "BB", "state": "DOWN", "ip": None}]}
+    )
+    assert devices.network_id is None
+    assert [d.ip for d in devices.devices] == [[], []]
+
+    people = FingPeopleResponse.model_validate(
+        {"networkId": None, "lastChangeTime": None, "people": [{"contactInfo": {"contactId": "c"}}]}
+    )
+    assert people.network_id is None and people.last_change_time is None
