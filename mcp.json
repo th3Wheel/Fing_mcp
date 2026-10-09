@@ -1,0 +1,79 @@
+{
+  "name": "fing-mcp",
+  "version": "1.0.0",
+  "description": "Typed, deterministic MCP server wrapping the Fing Local API for device inventory, people presence, and network monitoring.",
+  "tools": [
+    {
+      "name": "list_devices",
+      "description": "Return the list of devices discovered by the Fing agent.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "devices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "mac": {"type": "string"},
+                "ip": {"type": ["string", "null"]},
+                "name": {"type": ["string", "null"]},
+                "vendor": {"type": ["string", "null"]},
+                "type": {"type": ["string", "null"]},
+                "state": {"type": ["string", "null"]},
+                "lastSeen": {"type": ["string", "null"]}
+              },
+              "required": ["mac"]
+            }
+          }
+        },
+        "required": ["devices"]
+      }
+    },
+    {
+      "name": "list_people",
+      "description": "Return the list of people and their presence tracked by the Fing agent.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "people": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "name": {"type": ["string", "null"]},
+                "present": {"type": ["boolean", "null"]},
+                "lastSeen": {"type": ["string", "null"]}
+              },
+              "required": ["id"]
+            }
+          },
+          "presence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "personId": {"type": "string"},
+                "mac": {"type": ["string", "null"]},
+                "present": {"type": "boolean"},
+                "lastSeen": {"type": ["string", "null"]}
+              },
+              "required": ["personId", "present"]
+            }
+          }
+        },
+        "required": ["people", "presence"]
+      }
+    }
+  ]
+}
