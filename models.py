@@ -1,54 +1,119 @@
-"""Typed Pydantic models for the Fing Local API."""
+"""Typed Pydantic models for the Fing Local API (v1.1.0).
+
+Field names and aliases follow the published contract at
+https://www.fing.com/integrations/local-api/ and the reference client used by
+Home Assistant (``fing_agent_api``). Note that the ``/devices`` payload uses
+snake_case timestamps (``first_seen``, ``last_changed``) while ``/people``
+uses camelCase — the aliases below mirror the wire format exactly.
+
+Unknown fields are preserved (``extra="allow"``) so a newer Fing agent that
+adds fields does not break validation.
+"""
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class Device(BaseModel):
-    """Represents a device discovered by Fing."""
+class _FingModel(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+
+class Device(_FingModel):
+    """A device discovered by the Fing agent."""
 
     mac: str = Field(description="MAC address of the device")
-    ip: str | None = Field(default=None, description="IP address of the device")
+    ip: list[str] = Field(default_factory=list, description="IP addresses assigned to the device")
+    state: str = Field(description="Presence state: 'UP' (online) or 'DOWN' (offline)")
     name: str | None = Field(default=None, description="Friendly name of the device")
-    vendor: str | None = Field(default=None, description="Hardware vendor of the device")
-    type: str | None = Field(default=None, description="Device type")
-    state: str | None = Field(default=None, description="Current state (up/down)")
-    last_seen: str | None = Field(default=None, alias="lastSeen", description="ISO-8601 timestamp of last seen")
+    type: str | None = Field(default=None, description="Fing device type, e.g. STREAMING_DONGLE")
+    make: str | None = Field(default=None, description="Device manufacturer")
+    model: str | None = Field(default=None, description="Device model")
+    contact_id: str | None = Field(
+        default=None,
+        alias="contactId",
+        description="ID of the Fing contact (person) who owns this device",
+    )
+    first_seen: str | None = Field(
+        default=None, description="ISO-8601 time the device was first seen"
+    )
+    last_changed: str | None = Field(
+        default=None, description="ISO-8601 time of the last state change"
+    )
 
-    model_config = {"populate_by_name": True}
+    @field_validator("ip", mode="before")
+    @classmethod
+    def _coerce_ip(cls, value: Any) -> Any:
+        """Accept a bare string or null defensively; the contract says list[str]."""
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        return value
 
-
-class Person(BaseModel):
-    """Represents a person tracked by Fing."""
-
-    id: str = Field(description="Unique person identifier")
-    name: str | None = Field(default=None, description="Person's display name")
-    present: bool | None = Field(default=None, description="Whether the person is currently present")
-    last_seen: str | None = Field(default=None, alias="lastSeen", description="ISO-8601 timestamp of last seen")
-
-    model_config = {"populate_by_name": True}
-
-
-class PeoplePresence(BaseModel):
-    """Represents a presence event for a person."""
-
-    person_id: str = Field(alias="personId", description="ID of the associated person")
-    mac: str | None = Field(default=None, description="MAC address associated with this presence")
-    present: bool = Field(description="Whether the device is present")
-    last_seen: str | None = Field(default=None, alias="lastSeen", description="ISO-8601 timestamp of last seen")
-
-    model_config = {"populate_by_name": True}
-
-
-class FingDevicesResponse(BaseModel):
-    """Top-level response from GET /devices."""
-
-    devices: list[Device] = Field(default_factory=list, description="List of discovered devices")
+    @field_validator("state", mode="before")
+    @classmethod
+    def _normalise_state(cls, value: Any) -> Any:
+        return value.upper() if isinstance(value, str) else value
 
 
-class FingPeopleResponse(BaseModel):
-    """Top-level response from GET /people."""
+class FingDevicesResponse(_FingModel):
+    """Top-level response from ``GET /1/devices``."""
 
-    people: list[Person] = Field(default_factory=list, description="List of tracked people")
-    presence: list[PeoplePresence] = Field(default_factory=list, description="Presence records for each person")
+    network_id: str | None = Field(
+        default=None, alias="networkId", description="Fing network identifier"
+    )
+    devices: list[Device] = Field(
+        default_factory=list, description="Devices discovered on the network"
+    )
+
+
+class ContactInfo(_FingModel):
+    """Identity details of a Fing contact."""
+
+    contact_id: str = Field(alias="contactId", description="Unique contact identifier (UUID)")
+    display_name: str | None = Field(
+        default=None, alias="displayName", description="Contact display name"
+    )
+    contact_type: str | None = Field(
+        default=None, alias="contactType", description="Contact type, e.g. FAMILY"
+    )
+    picture_url: str | None = Field(
+        default=None, alias="pictureUrl", description="Avatar URL, if any"
+    )
+    picture_image_data: str | None = Field(
+        default=None, alias="pictureImageData", description="Base64-encoded avatar image, if any"
+    )
+
+
+class Contact(_FingModel):
+    """A person tracked by Fing, with their presence state."""
+
+    state_change_time: str | None = Field(
+        default=None, alias="stateChangeTime", description="ISO-8601 time presence last changed"
+    )
+    contact_info: ContactInfo = Field(alias="contactInfo", description="Identity details")
+    current_state: str | None = Field(
+        default=None,
+        alias="currentState",
+        description="'ONLINE' or 'OFFLINE'; absent when no presence device is assigned",
+    )
+    presence_device_details: dict[str, Any] | None = Field(
+        default=None, alias="presenceDeviceDetails", description="Device used to infer presence"
+    )
+
+
+class FingPeopleResponse(_FingModel):
+    """Top-level response from ``GET /1/people`` (Fing Desktop only)."""
+
+    network_id: str | None = Field(
+        default=None, alias="networkId", description="Fing network identifier"
+    )
+    last_change_time: str | None = Field(
+        default=None,
+        alias="lastChangeTime",
+        description="ISO-8601 time of the last presence change",
+    )
+    people: list[Contact] = Field(default_factory=list, description="Contacts and their presence")

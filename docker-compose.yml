@@ -1,42 +1,51 @@
+# Fing MCP over streamable HTTP at http://<docker-host>:8000/mcp
+#
+#   cp .env.example .env    # set FING_API_KEY and FING_API_BASE_URL
+#   docker compose up -d --build
+#
+# Optional 1Password Connect (FING_API_KEY=op://vault/item/field):
+#   put 1password-credentials.json next to this file, set OP_CONNECT_TOKEN, then
+#   docker compose --profile onepassword up -d --build
 services:
   fing-mcp:
     build:
       context: .
-      dockerfile: Dockerfile
+      target: runtime
     image: fing-mcp:latest
     restart: unless-stopped
     environment:
-      FING_API_BASE_URL: "${FING_API_BASE_URL:-http://fing-agent:48080}"
-      FING_API_KEY: "${FING_API_KEY}"
+      # Default reaches a Fing Desktop/Agent running on the Docker host itself.
+      FING_API_BASE_URL: "${FING_API_BASE_URL:-http://host.docker.internal:49090}"
+      FING_API_KEY: "${FING_API_KEY:?set FING_API_KEY in .env}"
       FING_TIMEOUT: "${FING_TIMEOUT:-10}"
-      FING_RETRIES: "${FING_RETRIES:-3}"
-      OP_CONNECT_HOST: "http://op-connect:8080"
-      OP_CONNECT_TOKEN: "${OP_CONNECT_TOKEN}"
+      FING_RETRIES: "${FING_RETRIES:-2}"
+      OP_CONNECT_HOST: "${OP_CONNECT_HOST:-}"
+      OP_CONNECT_TOKEN: "${OP_CONNECT_TOKEN:-}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "8000:8000"
+      - "${MCP_PUBLISH_PORT:-8000}:8000"
     depends_on:
-      op-connect:
-        condition: service_healthy
-    networks:
-      - fing-net
+      op-connect-api:
+        condition: service_started
+        required: false
 
-  op-connect:
-    image: 1password/connect-api:latest
+  op-connect-api:
+    profiles: [onepassword]
+    image: 1password/connect-api:1.8
     restart: unless-stopped
-    environment:
-      OP_SESSION: "${OP_SESSION}"
     volumes:
+      - ./1password-credentials.json:/home/opuser/.op/1password-credentials.json:ro
       - op-data:/home/opuser/.op/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - fing-net
 
-networks:
-  fing-net:
+  op-connect-sync:
+    profiles: [onepassword]
+    image: 1password/connect-sync:1.8
+    restart: unless-stopped
+    volumes:
+      - ./1password-credentials.json:/home/opuser/.op/1password-credentials.json:ro
+      - op-data:/home/opuser/.op/data
 
 volumes:
   op-data:

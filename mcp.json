@@ -1,78 +1,182 @@
 {
   "name": "fing-mcp",
-  "version": "1.0.0",
-  "description": "Typed, deterministic MCP server wrapping the Fing Local API for device inventory, people presence, and network monitoring.",
+  "version": "1.1.0",
+  "description": "Read-only MCP server for the Fing Local API: device inventory, presence and network summary.",
   "tools": [
     {
-      "name": "list_devices",
-      "description": "Return the list of devices discovered by the Fing agent.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {},
-        "additionalProperties": false
+      "name": "get_agent_status",
+      "description": "Diagnose the connection to Fing: checks the Local API (/devices and /people)\nand reads the agent's UPnP identity (Fingbox / Fing Agent only). Never fails \u2014\neach check reports ok or the error it hit.",
+      "annotations": {
+        "readOnlyHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
       },
-      "outputSchema": {
-        "type": "object",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_device",
+      "description": "Look up a single device by MAC, IP or name.\n\nExact MAC / IP / name matches win; otherwise partial name matches are\nreturned. If the device has an owner and the agent is Fing Desktop, the\nowner's display name is included as ``ownerName``.",
+      "annotations": {
+        "readOnlyHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "additionalProperties": false,
         "properties": {
-          "devices": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "mac": {"type": "string"},
-                "ip": {"type": ["string", "null"]},
-                "name": {"type": ["string", "null"]},
-                "vendor": {"type": ["string", "null"]},
-                "type": {"type": ["string", "null"]},
-                "state": {"type": ["string", "null"]},
-                "lastSeen": {"type": ["string", "null"]}
-              },
-              "required": ["mac"]
-            }
+          "identifier": {
+            "description": "MAC address (any separator), IP address, or device name (exact or partial)",
+            "minLength": 1,
+            "type": "string"
           }
         },
-        "required": ["devices"]
+        "required": [
+          "identifier"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_network_summary",
+      "description": "Summarise the network: online/offline counts, breakdown by type and make,\ndevices with no name or make (possible unknowns), and the most recently\nchanged and newest devices.",
+      "annotations": {
+        "readOnlyHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "top": {
+            "default": 10,
+            "description": "How many recent / new devices to include",
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_devices",
+      "description": "List devices discovered by the Fing agent, sorted by IP address.\n\nReturns the network ID, the total device count, how many matched the\nfilters, and the matching devices with their MAC, IPs, state, name, type,\nmake, model, owner contactId and first_seen / last_changed timestamps.",
+      "annotations": {
+        "readOnlyHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "UP",
+                  "DOWN"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Only devices that are online (UP) or offline (DOWN)"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Case-insensitive substring matched against name, make, model, type, IP and MAC"
+          },
+          "device_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Exact Fing device type, e.g. STREAMING_DONGLE, PHONE, LIGHT"
+          },
+          "changed_within_hours": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Only devices whose state changed in the last N hours"
+          },
+          "new_within_hours": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Only devices first seen in the last N hours"
+          }
+        },
+        "type": "object"
       }
     },
     {
       "name": "list_people",
-      "description": "Return the list of people and their presence tracked by the Fing agent.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {},
-        "additionalProperties": false
+      "description": "List people (Fing contacts) and their presence. Requires Fing Desktop as the agent.",
+      "annotations": {
+        "readOnlyHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
       },
-      "outputSchema": {
-        "type": "object",
+      "inputSchema": {
+        "additionalProperties": false,
         "properties": {
-          "people": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {"type": "string"},
-                "name": {"type": ["string", "null"]},
-                "present": {"type": ["boolean", "null"]},
-                "lastSeen": {"type": ["string", "null"]}
+          "state": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ONLINE",
+                  "OFFLINE"
+                ],
+                "type": "string"
               },
-              "required": ["id"]
-            }
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Only people currently ONLINE or OFFLINE"
           },
-          "presence": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "personId": {"type": "string"},
-                "mac": {"type": ["string", "null"]},
-                "present": {"type": "boolean"},
-                "lastSeen": {"type": ["string", "null"]}
-              },
-              "required": ["personId", "present"]
-            }
+          "include_pictures": {
+            "default": false,
+            "description": "Include base64 avatar image data (large; off by default)",
+            "type": "boolean"
           }
         },
-        "required": ["people", "presence"]
+        "type": "object"
       }
     }
   ]
