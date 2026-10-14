@@ -28,9 +28,11 @@ from typing import Annotated, Any, Literal
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
+from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from auth import BearerTokenMiddleware
 from config import load_config
 from fing_client import FingAPIError, FingClient
 from models import (
@@ -408,6 +410,35 @@ async def healthz(_request: Request) -> JSONResponse:
 # ------------------------------------------------------------------------ main
 
 
+def _truthy(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _http_middleware() -> list[Middleware]:
+    """Build the fail-closed auth middleware for the HTTP/SSE transport.
+
+    Requires ``MCP_AUTH_TOKEN`` to be set. Auth can be turned off explicitly
+    with ``MCP_AUTH_DISABLED=1`` (for example behind a trusted reverse proxy),
+    but never by simply forgetting to set a token — that fails closed by
+    refusing to start.
+    """
+    if _truthy(os.environ.get("MCP_AUTH_DISABLED")):
+        log.warning(
+            "MCP_AUTH_DISABLED is set: the HTTP endpoint is UNAUTHENTICATED. "
+            "Only do this on loopback or behind an authenticating reverse proxy."
+        )
+        return []
+
+    token = os.environ.get("MCP_AUTH_TOKEN", "").strip()
+    if not token:
+        raise SystemExit(
+            "Refusing to start the HTTP/SSE transport without authentication. "
+            "Set MCP_AUTH_TOKEN to a strong secret, or set MCP_AUTH_DISABLED=1 "
+            "only when the endpoint is on loopback or behind an authenticating proxy."
+        )
+    return [Middleware(BearerTokenMiddleware, token=token)]
+
+
 def main() -> None:
     logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), stream=sys.stderr)
     # httpx logs full request URLs at INFO, and the Fing key travels in the query string.
@@ -424,6 +455,7 @@ def main() -> None:
             transport=transport,
             host=os.environ.get("MCP_HOST", "127.0.0.1"),
             port=int(os.environ.get("MCP_PORT", "8000")),
+            middleware=_http_middleware(),
             show_banner=False,
         )
     else:

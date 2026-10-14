@@ -10,7 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
-COPY config.py fing_client.py models.py server.py mcp.json ./
+COPY config.py fing_client.py models.py server.py auth.py mcp.json ./
 
 # ── test: dev deps installed as root at build time, then run pytest ──────────
 FROM base AS test
