@@ -21,12 +21,16 @@ services:
       FING_RETRIES: "${FING_RETRIES:-2}"
       OP_CONNECT_HOST: "${OP_CONNECT_HOST:-}"
       OP_CONNECT_TOKEN: "${OP_CONNECT_TOKEN:-}"
+      # HTTP transport auth (fails closed): the server refuses to start without a
+      # token unless MCP_AUTH_DISABLED is set. Clients send Authorization: Bearer <token>.
+      MCP_AUTH_TOKEN: "${MCP_AUTH_TOKEN:-}"
+      MCP_AUTH_DISABLED: "${MCP_AUTH_DISABLED:-}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      # Loopback only by default: the endpoint is unauthenticated. Set MCP_BIND=0.0.0.0
-      # (or a LAN IP) in .env to expose it to other machines.
+      # Loopback only by default. The MCP endpoint requires a bearer token
+      # (MCP_AUTH_TOKEN); set MCP_BIND=0.0.0.0 (or a LAN IP) in .env to expose it.
       - "${MCP_BIND:-127.0.0.1}:${MCP_PUBLISH_PORT:-8000}:8000"
     depends_on:
       op-connect-api:

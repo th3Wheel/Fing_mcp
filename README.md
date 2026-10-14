@@ -75,14 +75,24 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json`:
 ### Any client over HTTP (Docker)
 
 ```bash
-cp .env.example .env          # set FING_API_KEY; FING_API_BASE_URL defaults to the Docker host
+cp .env.example .env          # set FING_API_KEY and MCP_AUTH_TOKEN; FING_API_BASE_URL defaults to the Docker host
 docker compose up -d --build
 curl http://localhost:8000/healthz
 ```
 
-The MCP endpoint is `http://localhost:8000/mcp` (streamable HTTP). It has **no authentication**, so
-Compose publishes it on loopback only. To reach it from other machines set `MCP_BIND=0.0.0.0` (or a
-LAN IP) in `.env`, and keep it on a trusted network or behind an authenticating reverse proxy.
+The MCP endpoint is `http://localhost:8000/mcp` (streamable HTTP). It **fails
+closed**: the http/sse transport refuses to start unless `MCP_AUTH_TOKEN` is set,
+and every request must send `Authorization: Bearer <token>` (only `/healthz` is
+open, for liveness probes). Generate a token with
+`python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+
+Compose still publishes on loopback only by default; set `MCP_BIND=0.0.0.0` (or a
+LAN IP) in `.env` to expose it. Disable auth **only** when the endpoint is on
+loopback or behind an authenticating reverse proxy, with `MCP_AUTH_DISABLED=1`.
+
+```bash
+curl -H "Authorization: Bearer $MCP_AUTH_TOKEN" http://localhost:8000/mcp
+```
 
 > **Fing Desktop and remote access:** if the server runs on a different machine than Fing Desktop
 > (for example in Docker on Proxmox), make sure the Windows firewall allows inbound TCP 49090. Fing
@@ -99,6 +109,8 @@ LAN IP) in `.env`, and keep it on a trusted network or behind an authenticating 
 | `FING_AGENT_INFO_PORT` | `44444` | UPnP identity port used by `get_agent_status` |
 | `MCP_TRANSPORT` | `stdio` | `stdio`, `http` or `sse` (Docker image defaults to `http`) |
 | `MCP_HOST` / `MCP_PORT` | `127.0.0.1` / `8000` | HTTP bind address inside the process/container |
+| `MCP_AUTH_TOKEN` | — | **Required for http/sse.** Bearer token clients must present; the server fails closed without it |
+| `MCP_AUTH_DISABLED` | `0` | Set to `1` to run http/sse without auth (loopback or trusted proxy only) |
 | `MCP_BIND` / `MCP_PUBLISH_PORT` | `127.0.0.1` / `8000` | Compose only: host address/port to publish on |
 | `OP_CONNECT_HOST` / `OP_CONNECT_TOKEN` | — | 1Password Connect for `op://` keys; the token must be literal |
 | `LOG_LEVEL` | `INFO` | Logs go to stderr; the API key is never logged |
