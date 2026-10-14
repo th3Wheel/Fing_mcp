@@ -1,24 +1,7 @@
+# docker compose -f docker-compose.test.yml run --rm test
 services:
   test:
     build:
       context: .
-      dockerfile: Dockerfile
-      target: base
+      target: test
     image: fing-mcp-test:latest
-    environment:
-      FING_API_BASE_URL: "http://fing-agent:48080"
-      FING_API_KEY: "test-key"
-      FING_TIMEOUT: "5"
-      FING_RETRIES: "0"
-      OP_CONNECT_HOST: ""
-      OP_CONNECT_TOKEN: ""
-    command: >
-      sh -c "pip install --no-cache-dir -r requirements-dev.txt &&
-             pytest tests/ -v --tb=short"
-    volumes:
-      - .:/app
-    networks:
-      - test-net
-
-networks:
-  test-net:
